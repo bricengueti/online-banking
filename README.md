@@ -1,4 +1,4 @@
-# 🏦 Online Bank — Microservices Application
+# 🏦 Online Banking — Microservices Application
 
 > Application bancaire en ligne basée sur une architecture microservices, construite avec **Spring Boot 3.4** et **Java 21**.
 
