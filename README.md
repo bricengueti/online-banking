@@ -244,6 +244,53 @@ mono_repo_ms/
 
 Le profil actif est défini via la variable d'environnement `PROFIL` (défaut : `local`).
 
+## 🗂 Cycle de vie d'un device
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  1. ENREGISTREMENT (Dashboard)                                             │
+│  POST /v1/devices/register                                                 │
+│  → Crée le device avec status = DISABLED                                  │
+│  → Génère un pairingCode (6 chiffres, valable 15min)                     │
+│  → Retourne le deviceId et pairingCode                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  2. PAIRING (App Mobile TNB)                                               │
+│  POST /v1/devices/pair { pairingCode }                                    │
+│  → Vérifie le code                                                        │
+│  → Génère un secretToken                                                  │
+│  → Device.status = OFFLINE                                                │
+│  → Retourne secretToken                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  3. CONNEXION WEBSOCKET (App Mobile TNB)                                  │
+│  ws://host:8070/ws/device?deviceId=xxx&secretToken=yyy                   │
+│  → Device.status = ONLINE                                                │
+│  → Backend → AUTH_SUCCESS                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  4. RAPPORT DES SIMs (App Mobile → Backend)                               │
+│  L'app mobile détecte les SIMs physiquement présentes                     │
+│  → Envoie DEVICE_SIMS_REPORT                                              │
+│  → Backend crée les DeviceSim avec les opérateurs                         │
+│  → Valide que l'opérateur appartient au pays du device                   │
+│  → Activation des SIMs                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  5. UTILISATION POUR L'ENVOI DE SMS                                       │
+│  POST /v1/messages/send { countryCode: "CM", operator: "MTN_CM" }        │
+│  → Backend cherche un device avec le pays et l'opérateur demandés        │
+│  → Sélectionne le device le moins utilisé                                │
+│  → Envoie DISPATCH_SMS via WebSocket                                     │
+│  → Le device envoie le SMS                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
 ```bash
 # Exemple pour lancer en profil test via Docker
 PROFIL=test docker compose up
